@@ -1,0 +1,92 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  role          String         // "admin" | "user"
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  bookings      Booking[]
+  transactions  AssetTransaction[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  assets      Asset[]
+}
+
+model Asset {
+  id                Int       @id @default(autoincrement())
+  name              String
+  categoryId        Int
+  category          Category  @relation(fields: [categoryId], references: [id])
+  description       String?
+  totalQuantity     Int
+  availableQuantity Int
+  status            String    // "Available" | "Partially Available" | "Unavailable" | "Under Maintenance"
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  bookings          Booking[]
+}
+
+model Booking {
+  id               Int                @id @default(autoincrement())
+  userId           Int
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assetId          Int
+  asset            Asset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  quantityRequested Int
+  startDate        DateTime
+  endDate          DateTime
+  dueDate          DateTime
+  status           String             // "Pending" | "Approved" | "Rejected" | "Issued" | "Returned" | "Overdue"
+  rejectionReason  String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  transactions     AssetTransaction[]
+}
+
+model AssetTransaction {
+  id            Int      @id @default(autoincrement())
+  bookingId     Int
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  action        String   // "issued" | "returned"
+  performedById Int
+  performedBy   User     @relation(fields: [performedById], references: [id])
+  notes         String?
+  timestamp     DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "booking_status" | "due_soon" | "overdue"
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String   // e.g. "CREATE_ASSET", "APPROVE_BOOKING"
+  entityType String   // e.g. "Asset", "Booking"
+  entityId   Int
+  metadata   String   // JSON string
+  timestamp  DateTime @default(now())
+}
